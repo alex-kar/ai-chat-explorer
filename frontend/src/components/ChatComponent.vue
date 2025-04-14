@@ -7,6 +7,7 @@
       :rooms-loaded="true"
       :messages-loaded="this.messagesLoaded"
       @add-room="onAddRoom"
+      @send-message="onSendMessage"
   />
 </template>
 
@@ -47,9 +48,50 @@ export default {
       this.rooms = [room]
       this.fetchMessages({room});
     },
-    fetchMessages({ room }) {
+    async onSendMessage(event) {
+      const msg = event.detail.at(0).content;
+      this.messages.push({
+        _id: Math.random().toString(36).substr(2, 9),
+        content: msg,
+        senderId: this.currentUserId,
+        timestamp: new Date().toISOString()
+      });
+
+      // request the answer
+      this.messagesLoaded = false;
+      try {
+        const response = await fetch(`http://localhost:8081/session/${this.rooms.at(0).roomId}/question`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: msg
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Error: ', response);
+        }
+
+        const result = await response.json();
+        this.messages.push({
+          _id: Math.random().toString(36).substr(2, 9),
+          content: result.text,
+          senderId: 'user1',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error sending message:', error);
+      } finally {
+        this.messagesLoaded = true;
+      }
+    },
+
+    fetchMessages({room})
+    {
       console.log('loading messages in room: ' + room.roomId)
-      this.messagesLoaded = false
+      this.messagesLoaded = false;
 
       // bot message
       setTimeout(() => {

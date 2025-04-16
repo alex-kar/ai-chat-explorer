@@ -46,7 +46,7 @@ export default {
       }
       // Keep only one room
       this.rooms = [room]
-      this.fetchMessages({room});
+      this.initConversation();
     },
     async onSendMessage(event) {
       const msg = event.detail.at(0).content;
@@ -58,7 +58,21 @@ export default {
       });
 
       // request the answer
-      this.messagesLoaded = false;
+      this.messagesLoaded = true;
+      const answer = await this.askQuestion("Question")
+      this.messages.push({
+        _id: Math.random().toString(36).substr(2, 9),
+        content: answer,
+        senderId: 'user1',
+        timestamp: new Date().toISOString()
+      });
+      this.messagesLoaded = true;
+    },
+    async initConversation() {
+      const answer = await this.askQuestion('');
+      this.displayMessage('user1', answer)
+    },
+    async askQuestion(question) {
       try {
         const response = await fetch(`http://localhost:8081/session/${this.rooms.at(0).roomId}/question`, {
           method: 'POST',
@@ -66,53 +80,30 @@ export default {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            text: msg
+            text: question
           }),
         });
-
         if (!response.ok) {
           throw new Error('Error: ', response);
         }
-
         const result = await response.json();
-        this.messages.push({
-          _id: Math.random().toString(36).substr(2, 9),
-          content: result.text,
-          senderId: 'user1',
-          timestamp: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('Error sending message:', error);
+        return result.text;
       } finally {
         this.messagesLoaded = true;
       }
     },
-
-    fetchMessages({room})
-    {
-      console.log('loading messages in room: ' + room.roomId)
-      this.messagesLoaded = false;
-
-      // bot message
-      setTimeout(() => {
+    displayMessage(userId, message) {
+      try {
+        this.messagesLoaded = true;
         this.messages.push({
           _id: Math.random().toString(36).substr(2, 9),
-          content: 'Hello! How can I help you today?',
-          senderId: this.currentUserId,
+          content: message,
+          senderId: userId,
           timestamp: new Date().toISOString()
         });
-        this.messagesLoaded = true
-      }, 1000)
-
-      // user message
-      setTimeout(() => {
-        this.messages.push({
-          _id: Math.random().toString(36).substr(2, 9),
-          content: 'Hi! I have a question about your product.',
-          senderId: 'user1',
-          timestamp: new Date().toISOString()
-        });
-      }, 2000)
+      } finally {
+        this.messagesLoaded = true;
+      }
     }
   }
 }
